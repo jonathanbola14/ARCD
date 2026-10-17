@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["crates/arcd", "crates/arcd-cli"]
+# The PyO3 extension crate is kept out of the default workspace members so that
+# plain `cargo test` / `cargo build` never need a Python toolchain to link.
+# Build it on demand with maturin (see README.md):
+#   maturin develop/release -m crates/arcd-py
+exclude = ["crates/arcd-py"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

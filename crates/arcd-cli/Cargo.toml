@@ -1,0 +1,21 @@
+[package]
+name = "arcd-cli"
+description = "Command-line frontend for the ARCD demosaicer (raw Bayer -> PPM)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "arcd"
+path = "src/main.rs"
+
+[features]
+# Camera RAW container support (DNG, NEF, CR2, ...) via the `rawler` decoder.
+# Default on; `--no-default-features` keeps the binary std-only (plain raw
+# dumps still work).
+default = ["camera-raw"]
+camera-raw = ["dep:rawler"]
+
+[dependencies]
+arcd = { path = "../arcd" }
+rawler = { version = "0.8", optional = true }

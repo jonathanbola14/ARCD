@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.8,<2"]
+build-backend = "maturin"
+
+[project]
+name = "arcd"
+version = "0.1.0"
+description = "Adaptive Ratio-Corrected Demosaicing (ARCD) for Bayer CFA sensors"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "ARCD contributors" }]
+keywords = ["demosaicing", "bayer", "cfa", "raw", "image"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = ["numpy"]
+
+[tool.maturin]
+module-name = "arcd._arcd"
+python-source = "python"
+features = ["pyo3/extension-module"]

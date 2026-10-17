@@ -1,0 +1,11 @@
+/target
+crates/arcd-py/target
+crates/arcd-py/dist
+*.so
+__pycache__/
+*.pyc
+.venv/
+
+# Large demo asset (25 MB) referenced nowhere — keep unversioned by default;
+# delete these two lines to commit it.
+assets/photo.dng

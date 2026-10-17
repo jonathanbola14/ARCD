@@ -1,0 +1,19 @@
+[package]
+name = "arcd-py"
+description = "PyO3 bindings for the ARCD demosaicer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+# NOTE: this crate is excluded from the root workspace on purpose, so plain
+# `cargo test` at the root never requires a Python toolchain. Build it with
+# maturin: `maturin develop/release -m crates/arcd-py/Cargo.toml` (see README).
+
+[lib]
+name = "_arcd"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+arcd = { path = "../arcd" }
+pyo3 = { version = "0.30", features = ["extension-module"] }
+numpy = "0.30"

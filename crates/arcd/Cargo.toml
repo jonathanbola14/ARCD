@@ -1,0 +1,15 @@
+[package]
+name = "arcd"
+description = "Adaptive Ratio-Corrected Demosaicing (ARCD) for Bayer CFA sensors - staged hybrid demosaicing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords = ["demosaicing", "bayer", "cfa", "image", "raw"]
+categories = ["multimedia::images"]
+
+[dependencies]
+# Intentionally empty: the core algorithm is pure std, which keeps it easy to
+# embed (e.g. behind PyO3, FFI, WASM) and to audit.
+
+[dev-dependencies]
+# Intentionally empty: tests use only std.
