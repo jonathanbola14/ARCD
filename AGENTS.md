@@ -7,8 +7,13 @@ truth lives" below), not invented ad hoc.
 
 ## Layout & boundaries
 
-- Workspace: `crates/arcd` = dep-free core library, `crates/arcd-cli` = raw→PPM
-  binary.
+- Workspace (`Cargo.toml`): `crates/arcd` = dep-free core library,
+  `crates/arcd-cli` = the `arcd` binary (headerless dump **and** camera RAW →
+  PPM).
+- `crates/arcd-cli` decodes camera RAW via `rawler 0.8` behind the default-on
+  `camera-raw` feature; `--no-default-features` keeps the binary std-only (plain
+  dumps still work, camera files error with a hint). Only the core must stay
+  dependency-free — CLI-only deps are fine.
 - `crates/arcd-py` (PyO3/numpy bindings) is **excluded** from the workspace on
   purpose so plain `cargo build/test` never needs a Python toolchain. It has
   its own `Cargo.lock` and must be built via maturin only.
@@ -22,6 +27,9 @@ truth lives" below), not invented ad hoc.
 cargo test --workspace                #core + cli only; python NOT covered
 cargo test -p arcd constant_image_all_patterns_exact   # single-test filter
 cargo clippy --workspace              # keep at 0 warnings
+# std-only CLI (no rawler): camera RAW paths compiled out, plain dumps only
+cargo build -p arcd-cli --no-default-features
+cargo test  -p arcd-cli --no-default-features
 
 # Python bindings (venv: ARCD/.venv — ignored by .gitignore)
 python3 -m venv .venv && . .venv/bin/activate
@@ -36,7 +44,7 @@ wheel from `crates/arcd-py/target/wheels/`.
 
 ## Module naming is a 3-place lockstep
 
-`pyproject.toml [tool.maturin] module-name = "arcd._arcd"` ↔
+`crates/arcd-py/pyproject.toml [tool.maturin] module-name = "arcd._arcd"` ↔
 `crates/arcd-py/Cargo.toml [lib] name = "_arcd"` ↔ `#[pymodule] fn _arcd`.
 Renames require updating all three plus the imports in
 `crates/arcd-py/python/arcd/__init__.py` (the public typed API wrapper). Keep
@@ -61,6 +69,24 @@ the `numpy` crate version in lockstep with `pyo3` (both 0.30 today).
 - Stage 3 (AHD candidate + homogeneity machinery) is skipped entirely when the
   image has no EDGE pixel — keep that fast path.
 
+## CLI / camera RAW (`crates/arcd-cli`)
+
+- **The dark/green PPM is expected.** The camera path normalizes to 16-bit
+  (`ArcdOptions::for_bit_depth(_, 16)`) and outputs raw sample scale; without
+  `--white-balance --gamma srgb` it is dark and green-cast (the sensor's own G
+  response). That is not a demosaic bug — do not compensate in the core.
+- **Phase is re-derived twice, and parity is dimension-sensitive.** Cropping on
+  an odd row/column rotates the Bayer phase (`CFA::shift`); the EXIF orientation
+  rotates it again. Any crop/rotate must transform the 2×2 phase letters with the
+  *same* index map as the plane, using the plane's actual (possibly odd)
+  dimensions — odd sizes flip parity differently. Tests live in `camera_raw.rs`.
+- **`rawler::Orientation::to_flips() -> (transpose, hflip, vflip)` applies the
+  flips BEFORE the transpose** (EXIF 6 / `Rotate90` = transpose∘vflip = 90° CW).
+  Preserve that order or portrait files come out mirrored.
+- **Match `scripts/raw_to_ppm.py`** (rawpy/LibRaw) for extraction choices; the
+  list lives in `camera_raw.rs` module docs. Unsupported sensors (X-Trans,
+  4-color RGBE/CYGM, rotated Fuji, linear-RGB DNG) error with a pointer to it.
+
 ## Conventions
 
 - Core crate stays dependency-free, `#![forbid(unsafe_code)]`, plain-slice API
@@ -76,4 +102,7 @@ the `numpy` crate version in lockstep with `pyo3` (both 0.30 today).
 - `crates/arcd/src/green.rs` module docs — "Interpretation notes" resolving
   paper ambiguities (ratio candidates, discrimination weights); README
   §"Fidelity to the paper" summarizes them. Change code + notes together.
+- `crates/arcd-cli/src/camera_raw.rs` module docs — camera RAW pipeline choices
+  (crop, normalization, phase, orientation, WB) and their `rawler` contract;
+  README §CLI summarizes them. Change code + notes together.
 - `README.md` — user-facing commands; re-verify any command before updating it.

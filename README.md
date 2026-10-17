@@ -73,20 +73,51 @@ $ cargo run -p arcd-cli --release -- in.raw \
 demosaiced 1024x768 in 126.4 ms (161 ms/MPx)
 
 # camera RAW containers: geometry comes from the file, no --width/--height
-$ cargo run -p arcd-cli --release -- IMG_0001.NEF -o out.ppm
-camera raw: Nikon ...: 6000x4000, pattern rggb (black 0, white 16383, ...)
-demosaiced 6000x4000 in ...
+# (WB + sRGB is the natural-looking preview combo)
+$ cargo run -p arcd-cli --release -- IMG_0001.NEF --white-balance --gamma srgb -o out.ppm
+camera raw: Nikon ...: 6000x4000, pattern rggb, crop active, wb (black 0, white 16383, ...)
+demosaiced 6000x4000 in ..., srgb gamma
+
+# output region of the camera RAW (sizes relative to the decoded plane):
+#   --crop active        usable sensor area (default; LibRaw-visible size)
+#   --crop recommended   the file's declared DefaultCrop size (viewers' size)
+#   --crop full          whole decoded plane, sensor borders included
+# EXIF orientation is applied so portrait shots come out upright:
+#   --orientation none   keep the sensor-plane geometry instead
+# --white-balance applies the camera WB gains; --gamma srgb applies the sRGB
+# display curve. Without them the output stays linear raw scale: dark and
+# green-cast (that is the sensor's own balance, not a demosaic bug)
 ```
 
 Input is either a headerless raw Bayer dump (`u8` with `--depth 8`, `u16` LE
 with `--depth 16`, add `--endian be` for big-endian; auto-detected, force with
 `--format plain`) or a camera RAW container decoded by the pure-Rust `rawler`
 crate (cargo feature `camera-raw`, on by default; `--format camera` to force).
-For camera files the active-area crop is applied, the Bayer phase is
-auto-detected from the CFA definition (`--pattern` overrides it) and samples
-are normalized to the full 16-bit scale (black level removed, so the Stage 1
-thresholds are meaningful for any sensor depth) — the same pipeline as
-`scripts/raw_to_ppm.py`. Output is binary PPM (P6), 8 bits.
+For camera files the Bayer phase is auto-detected from the CFA definition
+(`--pattern` overrides it) and samples are normalized to the full 16-bit scale
+(black level removed, so the Stage 1 thresholds are meaningful for any sensor
+depth) — the same pipeline as `scripts/raw_to_ppm.py`. `--crop` picks which
+part of the decoded plane becomes the output image: `active` (default, the
+usable sensor area — same size LibRaw reports as the visible plane),
+`recommended` (the container's declared crop, e.g. DNG `DefaultCrop`, the
+"image size" viewers show for the file) or `full` (the whole plane). The
+headerless path always outputs exactly `--width x --height`.
+
+Color and orientation of camera files: the EXIF orientation tag is applied by
+default (the phase letters go through the same transform, so a 90° rotation
+also swaps width/height and re-derives the pattern; `--orientation none` keeps
+the sensor-plane geometry). Without `--white-balance` the PPM stays in raw
+sample scale: it follows `scripts/raw_to_ppm.py` and is usually dark with a
+green cast, because the camera's G response dominates — that is expected, not
+a demosaic bug; `--white-balance` multiplies each site by the camera WB gains
+(normalized so the strongest channel has gain 1, dcraw `scale_colors`-style)
+as a preview aid. `--gamma srgb` then applies the sRGB display curve (IEC
+61966-2-1) when encoding the PPM, so a linear RAW no longer reads dark; the
+default `--gamma none` keeps the linear raw scale (useful for numeric
+comparison). The natural-looking preview combo is
+`--white-balance --gamma srgb`. A camera whose raw gain is already neutral
+reports no `wb` in the status line (a no-op is not "wb"). Output is binary
+PPM (P6), 8 bits.
 
 Bayer-only: X-Trans, 4-color (RGBE/CYGM), rotated-Fuji and linear-RGB DNG
 inputs are rejected with a pointer to the scripts; those can still be
